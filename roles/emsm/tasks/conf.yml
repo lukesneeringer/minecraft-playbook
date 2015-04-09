@@ -1,0 +1,40 @@
+---
+- name: Create a conf.d directory for individual worlds.
+  file:
+    group: '{{ system_user }}'
+    mode: 0755
+    owner: '{{ system_user }}'
+    path: /opt/minecraft/conf/worlds.d/
+    state: directory
+
+- name: Provide default world settings.
+  template:
+    dest: /opt/minecraft/conf/worlds.d/000-default
+    group: '{{ system_user }}'
+    owner: '{{ system_user }}'
+    src: world.conf.j2
+  with_items:
+    - name: DEFAULT
+      server: vanilla 1.8
+      stop_timeout: 10
+      stop_delay: 5
+      stop_message: The server is going down.
+      enable_initd: 'yes'
+  when: '"DEFAULT" not in worlds'
+
+- name: Define any worlds provided to the playbook.
+  template:
+    dest: /opt/minecraft/conf/worlds.d/{{ item.name }}
+    group: '{{ system_user }}'
+    owner: '{{ system_user }}'
+    src: world.conf.j2
+  with_items: worlds
+
+- name: Assemble the final worlds.conf file.
+  assemble:
+    backup: yes
+    dest: /opt/minecraft/conf/worlds.conf
+    group: '{{ system_user }}'
+    mode: 0644
+    owner: '{{ system_user }}'
+    src: /opt/minecraft/conf/worlds.d/

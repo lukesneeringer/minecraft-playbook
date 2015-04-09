@@ -1,0 +1,122 @@
+#!/usr/bin/env python
+import os
+import subprocess
+
+from ansible.module_utils.basic import *
+
+
+# Instantiate the Ansible module.
+module = AnsibleModule(argument_spec={
+    'force': {
+        'choices': BOOLEANS,
+        'default': False,
+    },
+    'name': {
+        'aliases': ['server'],
+        'reqired': False,
+    },
+    'update': {
+        'choices': BOOLEANS,
+        'default': False,
+    }
+})
+
+# Sanity check: Ensure emsm is installed
+if subprocess.call('which minecraft', shell=True) != 0:
+    module.fail_json('emsm must be installed on this machine.')
+
+# ----------------------------
+# -- Minecraft Server Facts --
+# ----------------------------
+# After the server command is run, the playbook should know which servers
+# are in use.
+#
+# Sanity check: First ensure that we have a worlds.conf file to
+# read this list from.
+if not os.path.isfile('/opt/minecraft/conf/worlds.conf'):
+    module.fail_json(msg='Could not read from worlds conf file. '
+                         'Ensure that /opt/minecraft/conf/worlds.conf exists.')
+
+# Read the worlds.conf file and get a list of servers.
+with open('/opt/minecraft/conf/worlds.conf', 'rb') as worlds:
+    worlds_conf = worlds.read().decode('ascii', 'ignore')
+
+# Iterate over the configuration file line by line looking for
+# "server = " declarations and compile a list of servers in use.
+servers = set()
+default_server = None
+world = None
+world_server_found = False
+
+for line in worlds_conf.split('\n'):
+    # Figure out what world this server is for.
+    match = re.search(r'^\[(?P<world>[\w\d_. -]+)\]', line)
+    if match:
+        if not world_server_found and default_server:
+            servers.add(default_server)
+        world = match.groupdict()['world'].strip()
+        world_server_found = False
+
+    # Determine the server.
+    # If this is not a server line, skip.
+    line = line.lower().strip()
+    match = re.search(r'server\s+=\s+(?P<name>[\w\d._ -]+)$', line)    
+    if not match:
+        continue
+
+    # If this is a server line, but for the default, skip.
+    server = match.groupdict()['name'].strip()
+    if world == 'DEFAULT':
+        default_server = server
+        world_server_found = True
+        continue
+
+    # Add thie server to the list.
+    world_server_found = True
+    servers.add(server)
+
+
+# -----------------------------
+# -- Minecraft Server Update --
+# -----------------------------
+changed = False
+updated = []
+
+# Download the server software for the given server if instructed to
+# do so.
+if module.boolean(module.params['update']):
+    # Are we updating every server, or just one?
+    targets = servers
+    if module.params['name']:
+        targets = [module.params['name']]
+
+    # Update the server or servers
+    for server in targets:
+        # Sanity check: If force is "no", then we only have to update
+        # the server if the appropriate file is not already present.
+        if not module.boolean(module.params['force']):
+            if os.path.isfile('/opt/minecraft/server/%s' % server):
+                continue
+            if os.path.isdir('/opt/minecraft/server/%s' % server):
+                continue
+
+        # Actually perform the update.
+        popen = subprocess.Popen('minecraft -s "%s" server --update',
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        stdout, stderr = popen.communicate()
+        if popen.returncode != 0:
+            module.fail_json(msg='Could not update server "%s".' % server,
+                             details=popen.stderr)
+        changed = True
+        updated.append(server)
+
+    # We are done. Exit.
+    module.exit_json(changed=changed, msg='Update successful.', updated=updated,
+                     ansible_facts={'minecraft_servers': sorted(servers)})
+
+# The command is not "update". All we did was add facts.
+module.exit_json(changed=changed,
+                 ansible_facts={'minecraft_servers': sorted(servers)})

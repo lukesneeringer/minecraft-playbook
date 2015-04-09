@@ -1,0 +1,7 @@
+---
+- name: Initialize Minecraft servers.
+  emsm_server:
+    force: no
+    update: yes
+  sudo_user: minecraft
+  notify: minecraft.restart

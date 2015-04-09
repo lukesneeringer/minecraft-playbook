@@ -1,0 +1,61 @@
+#!/usr/bin/env python
+import os
+
+try:
+    import requests
+    requests_installed = True
+except ImportError:
+    requests_installed = False
+
+from ansible.module_utils.basic import *
+
+
+# Instantiate the Ansible module.
+module = AnsibleModule(argument_spec={
+    'force': {'default': 'no', 'required': False, 'type': 'bool'},
+    'path': {'aliases': ['dest', 'name'], 'required': True},
+    'src': {'required': True},
+    'timeout': {'default': 10, 'type': 'int'},
+}, add_file_common_args=True)
+
+# Sanity check: Ensure requests is installed.
+if not requests_installed:
+    module.fail_json('requests must be installed on this machine.')
+
+# Init vars.
+file_args = module.load_file_common_arguments(module.params)
+changed = False
+
+# Ensure that the path is absolute.
+module.params['path'] = os.path.expanduser(module.params['path'])
+
+# Sanity check: If the file already exists and "force" is no,
+# then no action is necessary.
+if not module.params['force'] and os.path.lexists(module.params['path']):
+    changed = module.set_fs_attributes_if_different(file_args, changed)
+    module.exit_json(
+        changed=changed,
+        dest=module.params['path'],
+        src=module.params['src'],
+    )
+
+# Download the file to the appropriate location.
+try:
+    r = requests.get(module.params['src'], timeout=module.params['timeout'])
+except requests.exceptions.Timeout:
+    module.fail_json(msg='Request to %s timed out.' % module.params['src'])
+
+# Sanity check: If we got back a 400+ status code, then there is a problem,
+# and we should fail out.
+if r.status_code >= 400:
+    module.fail_json(msg='Bad HTTP status code received.',
+                     status_code=r.status_code)
+
+# Write the file to disk.
+with open(module.params['dest'], 'wb') as outfile:
+    outfile.write(r.content)
+
+# Set any needed file attributes and complete.
+changed = module.set_fs_attributes_if_different(file_args, changed)
+module.exit_json(changed=changed, dest=module.params['path'],
+                 src=module.params['src'])

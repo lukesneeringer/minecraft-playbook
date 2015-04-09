@@ -1,0 +1,21 @@
+---
+- name: Ensure that the mods directory exists.
+  file:
+    group: minecraft
+    path: /opt/minecraft/worlds/{{ item.name }}/mods/
+    mode: 0775
+    owner: minecraft
+    state: directory
+  with_items: worlds
+
+- name: Download mods.
+  download:
+    group: minecraft
+    dest: /opt/minecraft/worlds/{{ item.0.name }}/mods/{{ item.1.split('/')[-1] }}
+    mode: 0664
+    owner: minecraft
+    src: '{{ item.1 }}'
+  with_subelements:
+    - worlds
+    - mods
+  notify: minecraft.restart

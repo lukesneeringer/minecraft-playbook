@@ -1,0 +1,35 @@
+---
+- name: Ensure that we are able to accept the Java EULA.
+  assert:
+    msg: Unable to accept Java EULA. Set `accept_java_eula` variable (in Ansible) to yes.
+    that: accept_java_eula
+
+- name: Install debconf, which we need to accept the Java EULA (Ubuntu).
+  apt:
+    name: '{{ item }}'
+    state: present
+    update_cache: yes
+  no_log: yes
+  with_items:
+    - debconf
+    - debconf-utils
+
+- name: Add the PPA necessary for installing Java (Ubuntu).
+  apt_repository:
+    repo: ppa:webupd8team/java
+    state: present
+    update_cache: yes
+
+- name: Auto-accept license for Java, because Oracle is the devil (Ubuntu).
+  debconf:
+    name: oracle-java8-installer
+    question: shared/accepted-oracle-license-v1-1
+    value: 'true'
+    vtype: select
+  when: accept_java_eula
+
+- name: Install Java SDK (Ubuntu).
+  apt:
+    name: oracle-java8-installer
+    state: present
+  no_log: yes

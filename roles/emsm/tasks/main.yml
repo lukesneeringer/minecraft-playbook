@@ -1,0 +1,6 @@
+---
+- include: install.yml
+- include: conf.yml
+- include: servers.yml
+- include: worlds.yml
+- include: mods.yml

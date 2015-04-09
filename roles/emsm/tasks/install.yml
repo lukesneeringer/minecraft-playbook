@@ -1,0 +1,56 @@
+---
+- name: Install system packages (Ubuntu).
+  apt:
+    name: '{{ item }}'
+    state: present
+    update_cache: yes
+  no_log: yes
+  with_items:
+    - git
+    - python3
+    - python3-dev
+    - python3-pip
+    - rsync
+    - screen
+
+- name: Create the Minecraft user.
+  user:
+    name: '{{ system_user }}'
+    shell: /bin/bash
+    state: present
+    system: yes
+
+- name: Create a directory for the Minecraft servers to live.
+  file:
+    group: '{{ system_user }}'
+    mode: 02775
+    owner: '{{ system_user }}'
+    path: /opt/minecraft/
+    state: directory
+
+- name: Install EMSM.
+  pip:
+    executable: pip3
+    name: emsm>=4.0.8-beta
+
+- name: Create a Minecraft executable file.
+  copy:
+    dest: /opt/minecraft/minecraft.py
+    group: minecraft
+    mode: 0775
+    owner: minecraft
+    src: minecraft.py
+
+- name: Symlink the emsm binary into `/usr/local/bin/`.
+  file:
+    dest: /usr/local/bin/minecraft
+    src: /opt/minecraft/minecraft.py
+    state: link
+
+- name: Place the init.d script.
+  copy:
+    dest: /etc/init.d/minecraft
+    group: root
+    mode: 0775
+    owner: root
+    src: minecraft.initd

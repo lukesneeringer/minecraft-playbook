@@ -1,0 +1,17 @@
+[{{ item.name }}]
+{% if item.get('server', None) %}
+server = {{ item.server }}
+{% endif %}
+{% if item.get('stop_timeout', None) %}
+stop_timeout = {{ item.stop_timeout }}
+{% endif %}
+{% if item.get('stop_delay', None) %}
+stop_delay = {{ item.stop_delay }}
+{% endif %}
+{% if item.get('stop_message', None) %}
+stop_message = {{ item.stop_message }}
+{% endif %}
+{% if item.get('enable_initd', None) %}
+enable_initd = {{ item.enable_initd }}
+{% endif %}
+

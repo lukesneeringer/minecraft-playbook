@@ -1,0 +1,7 @@
+[{% for op in item.ops -%}
+    {
+        "uuid": "{{ op.uuid }}",
+        "name": "{{ op.name }}",
+        "level": {{ op.level }}
+    }{% if not loop.last %},{% endif %}
+{%- endfor %}]

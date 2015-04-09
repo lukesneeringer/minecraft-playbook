@@ -1,0 +1,43 @@
+---
+- name: Ensure that we are able to accept the Minecraft EULA.
+  assert:
+    msg: Unable to accept Minecraft EULA. Set `accept_minecraft_eula` variable (in Ansible) to yes.
+    that: accept_minecraft_eula
+
+- name: Create the world directory for each world.
+  file:
+    group: minecraft
+    owner: minecraft
+    path: /opt/minecraft/worlds/{{ item.name }}
+    state: directory
+  with_items: worlds
+
+- name: Accept the EULA on each world.
+  copy:
+    dest: /opt/minecraft/worlds/{{ item.name }}/eula.txt
+    group: minecraft
+    owner: minecraft
+    src: eula.txt
+  with_items: worlds
+  when: accept_minecraft_eula
+
+- name: Write the server.properties file for each world.
+  template:
+    dest: /opt/minecraft/worlds/{{ item.name }}/server.properties
+    force: no
+    group: minecraft
+    owner: minecraft
+    src: server.properties.j2
+  notify: minecraft.restart
+  with_items: worlds
+  when: item.properties is defined
+
+- name: Write the ops.json file for each world.
+  template:
+    dest: /opt/minecraft/worlds/{{ item.name }}/ops.json
+    group: minecraft
+    owner: minecraft
+    src: ops.json.j2
+  notify: minecraft.restart
+  with_items: worlds
+  when: item.ops is defined
