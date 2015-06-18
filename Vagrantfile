@@ -14,7 +14,8 @@ Vagrant.configure('2') do |config|
     trusty.vm.box = 'ubuntu/trusty64'
 
     trusty.vm.hostname = 'minecraft'
-    trusty.vm.network :private_network, ip: '33.33.33.10'
+    trusty.vm.network :private_network,
+      ip: '33.33.33.10'
 
     trusty.vm.provider :virtualbox do |vb|
       vb.customize ["modifyvm", :id, "--memory", '2048']
