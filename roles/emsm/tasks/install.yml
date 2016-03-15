@@ -31,7 +31,7 @@
 - name: Install EMSM.
   pip:
     executable: pip3
-    name: emsm>=4.0.8-beta
+    name: emsm>=4.0.13-beta
 
 - name: Create a Minecraft executable file.
   copy:
